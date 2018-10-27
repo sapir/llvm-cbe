@@ -4855,6 +4855,70 @@ void CWriter::visitStoreInst(StoreInst &I) {
     Out << ") & " << BitMask << ")";
 }
 
+void CWriter::visitAtomicCmpXchgInst(AtomicCmpXchgInst &I) {
+  // TODO: support all operands properly
+  Out << "__atomic_compare_exchange(";
+  writeOperand(I.getPointerOperand());
+  Out << ", ";
+  writeOperand(I.getCompareOperand());
+  Out << ", ";
+  writeOperand(I.getNewValOperand());
+  Out << ", ";
+  Out << (I.isWeak() ? "true" : "false");
+  Out << ", __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)";
+}
+
+void CWriter::visitAtomicRMWInst(AtomicRMWInst &I) {
+  switch (I.getOperation()) {
+  case AtomicRMWInst::Xchg:
+    Out << "__atomic_exchange";
+    break;
+  case AtomicRMWInst::Add:
+    Out << "__atomic_fetch_add";
+    break;
+  case AtomicRMWInst::Sub:
+    Out << "__atomic_fetch_sub";
+    break;
+  case AtomicRMWInst::And:
+    Out << "__atomic_fetch_and";
+    break;
+  case AtomicRMWInst::Nand:
+    Out << "__atomic_fetch_nand";
+    break;
+  case AtomicRMWInst::Or:
+    Out << "__atomic_fetch_or";
+    break;
+  case AtomicRMWInst::Xor:
+    Out << "__atomic_fetch_xor";
+    break;
+    // case AtomicRMWInst::Max:
+    // case AtomicRMWInst::Min:
+    // case AtomicRMWInst::UMax:
+    // case AtomicRMWInst::UMin:
+
+  default:
+#ifndef NDEBUG
+    errs() << "Unsupported atomicrmw instruction: " << I << "\n";
+#endif
+    llvm_unreachable(0);
+    break;
+  }
+
+  Out << "(";
+  writeOperand(I.getPointerOperand());
+  Out << ", ";
+  writeOperand(I.getValOperand());
+  // TODO: check I.getSyncScope()
+  // TODO: check I.getOrdering()
+  Out << ", __ATOMIC_SEQ_CST)";
+}
+
+void CWriter::visitFenceInst(FenceInst &I) {
+  // TODO: check I.getSyncScope()
+  // TODO: check I.getOrdering()
+  Out << "__atomic_thread_fence(__ATOMIC_SEQ_CST)";
+}
+
 void CWriter::visitGetElementPtrInst(GetElementPtrInst &I) {
   CurInstr = &I;
 
