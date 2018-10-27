@@ -1346,7 +1346,8 @@ void CWriter::printConstantWithCast(Constant *CPV, unsigned Opcode) {
   // Extract the operand's type, we'll need it.
   Type *OpTy = CPV->getType();
   // TODO: VectorType are valid here, but not supported
-  if (!OpTy->isIntegerTy() && !OpTy->isFloatingPointTy()) {
+  if (!OpTy->isIntegerTy() && !OpTy->isFloatingPointTy() &&
+      !OpTy->isPointerTy()) {
 #ifndef NDEBUG
     errs() << "Unsupported 'constant with cast' type " << *OpTy
            << " in: " << *CPV << "\n"
