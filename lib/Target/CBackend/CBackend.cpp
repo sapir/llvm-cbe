@@ -201,6 +201,13 @@ raw_ostream &CWriter::printTypeString(raw_ostream &Out, Type *Ty,
     return Out << "unnamed_" + utostr(id);
   }
 
+  if (FunctionType *FT = dyn_cast<FunctionType>(Ty)) {
+    // TODO: attributes? and calling conventions
+    auto attrs = std::make_pair(AttributeList(), CallingConv::C);
+    return printFunctionProto(Out, FT, attrs, "*" + getFunctionName(FT, attrs),
+                              nullptr);
+  }
+
   if (Ty->isPointerTy()) {
     Out << "p";
     return printTypeString(Out, Ty->getPointerElementType(), isSigned);
