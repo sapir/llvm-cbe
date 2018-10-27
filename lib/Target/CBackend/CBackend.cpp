@@ -529,6 +529,7 @@ CWriter::printFunctionProto(raw_ostream &Out, FunctionType *FTy,
   case CallingConv::X86_StdCall:
     Out << " __stdcall";
     break;
+  case CallingConv::Fast:
   case CallingConv::X86_FastCall:
     Out << " __fastcall";
     break;
