@@ -528,14 +528,14 @@ CWriter::printFunctionProto(raw_ostream &Out, FunctionType *FTy,
   case CallingConv::C:
     break;
   case CallingConv::X86_StdCall:
-    Out << " __stdcall";
+    Out << " __CBE_STDCALL__";
     break;
   case CallingConv::Fast:
   case CallingConv::X86_FastCall:
-    Out << " __fastcall";
+    Out << " __CBE_FASTCALL__";
     break;
   case CallingConv::X86_ThisCall:
-    Out << " __thiscall";
+    Out << " __CBE_THISCALL__";
     break;
   default:
 #ifndef NDEBUG
@@ -1674,6 +1674,17 @@ static void generateCompilerSpecificCode(raw_ostream &Out,
   Out << "#else\n";
   Out << "#define __noreturn __attribute__((noreturn))\n";
   Out << "#define __forceinline __attribute__((always_inline)) inline\n";
+  Out << "#endif\n\n";
+
+  // Define compatibility macros for calling conventions
+  Out << "#ifdef _MSC_VER\n";
+  Out << "#define __CBE_STDCALL__ __stdcall\n";
+  Out << "#define __CBE_THISCALL__ __thiscall\n";
+  Out << "#define __CBE_FASTCALL__ __fastcall\n";
+  Out << "#else\n";
+  Out << "#define __CBE_STDCALL__ __attribute__((stdcall))\n";
+  Out << "#define __CBE_THISCALL__ __attribute__((thiscall))\n";
+  Out << "#define __CBE_FASTCALL__ __attribute__((fastcall))\n";
   Out << "#endif\n\n";
 
   // Define NaN and Inf as GCC builtins if using GCC
