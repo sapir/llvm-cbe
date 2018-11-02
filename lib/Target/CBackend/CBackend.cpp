@@ -527,10 +527,12 @@ CWriter::printFunctionProto(raw_ostream &Out, FunctionType *FTy,
   switch (Attrs.second) {
   case CallingConv::C:
     break;
+  case CallingConv::Fast:
+    // TODO
+    break;
   case CallingConv::X86_StdCall:
     Out << " __CBE_STDCALL__";
     break;
-  case CallingConv::Fast:
   case CallingConv::X86_FastCall:
     Out << " __CBE_FASTCALL__";
     break;
