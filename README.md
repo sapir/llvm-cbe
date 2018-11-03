@@ -61,6 +61,12 @@ For development, `BUILD_SHARED_LIBS` is recommended:
     make llvm-cbe
 ```
 
+To run tests, you will also need to build `lli`:
+
+```sh
+    make lli
+```
+
 Step 3: Usage Examples
 ======================
 
