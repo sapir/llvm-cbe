@@ -191,7 +191,6 @@ static std::string CBEMangle(const std::string &S) {
 raw_ostream &CWriter::printTypeString(raw_ostream &Out, Type *Ty,
                                       bool isSigned) {
   if (StructType *ST = dyn_cast<StructType>(Ty)) {
-    cwriter_assert(!isEmptyType(ST));
     TypedefDeclTypes.insert(Ty);
 
     if (!ST->isLiteral() && !ST->getName().empty())
@@ -241,7 +240,6 @@ raw_ostream &CWriter::printTypeString(raw_ostream &Out, Type *Ty,
   case Type::VectorTyID: {
     TypedefDeclTypes.insert(Ty);
     VectorType *VTy = cast<VectorType>(Ty);
-    cwriter_assert(VTy->getNumElements() != 0);
     printTypeString(Out, VTy->getElementType(), isSigned);
     return Out << "x" << VTy->getNumElements();
   }
@@ -249,7 +247,6 @@ raw_ostream &CWriter::printTypeString(raw_ostream &Out, Type *Ty,
   case Type::ArrayTyID: {
     TypedefDeclTypes.insert(Ty);
     ArrayType *ATy = cast<ArrayType>(Ty);
-    cwriter_assert(ATy->getNumElements() != 0);
     printTypeString(Out, ATy->getElementType(), isSigned);
     return Out << "a" << ATy->getNumElements();
   }
@@ -263,7 +260,6 @@ raw_ostream &CWriter::printTypeString(raw_ostream &Out, Type *Ty,
 }
 
 std::string CWriter::getStructName(StructType *ST) {
-  cwriter_assert(ST->getNumElements() != 0);
   if (!ST->isLiteral() && !ST->getName().empty())
     return "struct l_struct_" + CBEMangle(ST->getName().str());
 
@@ -283,7 +279,6 @@ std::string CWriter::getArrayName(ArrayType *AT) {
   raw_string_ostream ArrayInnards(astr);
   // Arrays are wrapped in structs to allow them to have normal
   // value semantics (avoiding the array "decay").
-  cwriter_assert(!isEmptyType(AT));
   printTypeName(ArrayInnards, AT->getElementType(), false);
   return "struct l_array_" + utostr(AT->getNumElements()) + '_' +
          CBEMangle(ArrayInnards.str());
@@ -293,7 +288,6 @@ std::string CWriter::getVectorName(VectorType *VT, bool Aligned) {
   std::string astr;
   raw_string_ostream VectorInnards(astr);
   // Vectors are handled like arrays
-  cwriter_assert(!isEmptyType(VT));
   if (Aligned)
     Out << "__MSALIGN__(" << TD->getABITypeAlignment(VT) << ") ";
   printTypeName(VectorInnards, VT->getElementType(), false);
@@ -601,7 +595,6 @@ CWriter::printFunctionProto(raw_ostream &Out, FunctionType *FTy,
 }
 
 raw_ostream &CWriter::printArrayDeclaration(raw_ostream &Out, ArrayType *ATy) {
-  cwriter_assert(!isEmptyType(ATy));
   // Arrays are wrapped in structs to allow them to have normal
   // value semantics (avoiding the array "decay").
   Out << getArrayName(ATy) << " {\n  ";
@@ -612,7 +605,6 @@ raw_ostream &CWriter::printArrayDeclaration(raw_ostream &Out, ArrayType *ATy) {
 
 raw_ostream &CWriter::printVectorDeclaration(raw_ostream &Out,
                                              VectorType *VTy) {
-  cwriter_assert(!isEmptyType(VTy));
   // Vectors are printed like arrays
   Out << getVectorName(VTy, false) << " {\n  ";
   printTypeName(Out, VTy->getElementType());
@@ -1027,7 +1019,6 @@ void CWriter::printConstant(Constant *CPV, enum OperandContext Context) {
         return;
       }
       VectorType *VT = cast<VectorType>(CPV->getType());
-      cwriter_assert(!isEmptyType(VT));
       CtorDeclTypes.insert(VT);
       Out << "/*undef*/llvm_ctor_";
       printTypeString(Out, VT, false);
@@ -1171,7 +1162,6 @@ void CWriter::printConstant(Constant *CPV, enum OperandContext Context) {
     if (printConstantString(CPV, Context))
       break;
     ArrayType *AT = cast<ArrayType>(CPV->getType());
-    cwriter_assert(AT->getNumElements() != 0 && !isEmptyType(AT));
     if (Context != ContextStatic) {
       CtorDeclTypes.insert(AT);
       Out << "llvm_ctor_";
@@ -1203,7 +1193,6 @@ void CWriter::printConstant(Constant *CPV, enum OperandContext Context) {
 
   case Type::VectorTyID: {
     VectorType *VT = cast<VectorType>(CPV->getType());
-    cwriter_assert(VT->getNumElements() != 0 && !isEmptyType(VT));
     if (Context != ContextStatic) {
       CtorDeclTypes.insert(VT);
       Out << "llvm_ctor_";
@@ -1233,7 +1222,6 @@ void CWriter::printConstant(Constant *CPV, enum OperandContext Context) {
 
   case Type::StructTyID: {
     StructType *ST = cast<StructType>(CPV->getType());
-    cwriter_assert(!isEmptyType(ST));
     if (Context != ContextStatic) {
       CtorDeclTypes.insert(ST);
       Out << "llvm_ctor_";
@@ -3124,8 +3112,6 @@ void CWriter::forwardDeclareStructs(raw_ostream &Out, Type *Ty,
 void CWriter::forwardDeclareFunctionTypedefs(raw_ostream &Out, Type *Ty,
                                              std::set<Type *> &TypesPrinted) {
   if (!TypesPrinted.insert(Ty).second)
-    return;
-  if (isEmptyType(Ty))
     return;
 
   for (auto I = Ty->subtype_begin(); I != Ty->subtype_end(); ++I) {
