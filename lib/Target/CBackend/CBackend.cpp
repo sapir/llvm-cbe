@@ -404,24 +404,114 @@ raw_ostream &CWriter::printSimpleType(raw_ostream &Out, Type *Ty,
   }
 }
 
+raw_ostream &CWriter::printCallingConv(raw_ostream &Out,
+                                       CallingConv::ID CConv) {
+  switch (CConv) {
+  case CallingConv::C:
+    break;
+  case CallingConv::X86_StdCall:
+    Out << " __stdcall";
+    break;
+  case CallingConv::X86_FastCall:
+    Out << " __fastcall";
+    break;
+  case CallingConv::X86_ThisCall:
+    Out << " __thiscall";
+    break;
+  default:
+#ifndef NDEBUG
+    errs() << "Unhandled calling convention " << CConv << "\n";
+#endif
+    errorWithMessage("Encountered Unhandled Calling Convention");
+    break;
+  }
+
+  return Out;
+}
+
+raw_ostream &CWriter::printFunctionType(
+    raw_ostream &Out, FunctionType *FTy,
+    std::pair<AttributeList, CallingConv::ID> AttrsAndCC) {
+  AttributeList &PAL = AttrsAndCC.first;
+
+  if (PAL.hasAttribute(AttributeList::FunctionIndex, Attribute::NoReturn))
+    Out << "__noreturn ";
+
+  // Should this function actually return a struct by-value?
+  bool isStructReturn = PAL.hasAttribute(1, Attribute::StructRet) ||
+                        PAL.hasAttribute(2, Attribute::StructRet);
+  // Get the return type for the function.
+  Type *RetTy;
+  if (!isStructReturn)
+    RetTy = FTy->getReturnType();
+  else {
+    // If this is a struct-return function, print the struct-return type.
+    RetTy = cast<PointerType>(FTy->getParamType(0))->getElementType();
+  }
+  printTypeName(Out, RetTy,
+                /*isSigned=*/
+                PAL.hasAttribute(AttributeList::ReturnIndex, Attribute::SExt));
+
+  Out << " (*)(";
+
+  unsigned Idx = 1;
+  bool PrintedArg = false;
+  FunctionType::param_iterator I = FTy->param_begin(), E = FTy->param_end();
+
+  // If this is a struct-return function, don't print the hidden
+  // struct-return argument.
+  if (isStructReturn) {
+    cwriter_assert(I != E && "Invalid struct return function!");
+    ++I;
+    ++Idx;
+  }
+
+  for (; I != E; ++I) {
+    Type *ArgTy = *I;
+    if (PAL.hasAttribute(Idx, Attribute::ByVal)) {
+      cwriter_assert(ArgTy->isPointerTy());
+      ArgTy = cast<PointerType>(ArgTy)->getElementType();
+    }
+    if (PrintedArg)
+      Out << ", ";
+    printTypeNameUnaligned(Out, ArgTy,
+                           /*isSigned=*/PAL.hasAttribute(Idx, Attribute::SExt));
+    PrintedArg = true;
+    ++Idx;
+  }
+
+  if (FTy->isVarArg()) {
+    if (!PrintedArg) {
+      Out << "int"; // dummy argument for empty vaarg functs
+    }
+    Out << ", ...";
+  } else if (!PrintedArg) {
+    Out << "void";
+  }
+  Out << ")";
+
+  printCallingConv(Out, AttrsAndCC.second);
+
+  return Out;
+}
+
 // Pass the Type* and the variable name and this prints out the variable
 // declaration.
 raw_ostream &
 CWriter::printTypeName(raw_ostream &Out, Type *Ty, bool isSigned,
                        std::pair<AttributeList, CallingConv::ID> PAL) {
-  if (Ty->isSingleValueType() || Ty->isVoidTy()) {
-    if (!Ty->isPointerTy() && !Ty->isVectorTy())
-      return printSimpleType(Out, Ty, isSigned);
+  if ((Ty->isSingleValueType() || Ty->isVoidTy()) && !Ty->isPointerTy() &&
+      !Ty->isVectorTy()) {
+    return printSimpleType(Out, Ty, isSigned);
   }
-
-  if (isEmptyType(Ty))
-    return Out << "void";
 
   switch (Ty->getTypeID()) {
   case Type::FunctionTyID: {
+    // treat functions as function pointers
     FunctionType *FTy = cast<FunctionType>(Ty);
-    return Out << getFunctionName(FTy, PAL);
+    return printFunctionType(Out, FTy, PAL);
   }
+
   case Type::StructTyID: {
     TypedefDeclTypes.insert(Ty);
     return Out << getStructName(cast<StructType>(Ty));
@@ -429,7 +519,12 @@ CWriter::printTypeName(raw_ostream &Out, Type *Ty, bool isSigned,
 
   case Type::PointerTyID: {
     Type *ElTy = Ty->getPointerElementType();
-    return printTypeName(Out, ElTy, false) << '*';
+    if (ElTy->getTypeID() == Type::FunctionTyID) {
+      FunctionType *FTy = cast<FunctionType>(ElTy);
+      return printFunctionType(Out, FTy, PAL);
+    } else {
+      return printTypeName(Out, ElTy, false) << '*';
+    }
   }
 
   case Type::ArrayTyID: {
@@ -523,25 +618,10 @@ CWriter::printFunctionProto(raw_ostream &Out, FunctionType *FTy,
                 /*isSigned=*/
                 PAL.hasAttribute(AttributeList::ReturnIndex, Attribute::SExt));
 
-  switch (Attrs.second) {
-  case CallingConv::C:
-    break;
-  case CallingConv::X86_StdCall:
-    Out << " __stdcall";
-    break;
-  case CallingConv::X86_FastCall:
-    Out << " __fastcall";
-    break;
-  case CallingConv::X86_ThisCall:
-    Out << " __thiscall";
-    break;
-  default:
-#ifndef NDEBUG
-    errs() << "Unhandled calling convention " << Attrs.second << "\n";
-#endif
-    errorWithMessage("Encountered Unhandled Calling Convention");
-    break;
-  }
+  Out << ' ';
+
+  printCallingConv(Out, Attrs.second);
+
   Out << ' ' << Name << '(';
 
   unsigned Idx = 1;

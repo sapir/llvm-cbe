@@ -129,6 +129,11 @@ private:
   raw_ostream &printArrayDeclaration(raw_ostream &Out, ArrayType *Ty);
   raw_ostream &printVectorDeclaration(raw_ostream &Out, VectorType *Ty);
 
+  raw_ostream &printCallingConv(raw_ostream &Out, CallingConv::ID CConv);
+  raw_ostream &
+  printFunctionType(raw_ostream &Out, FunctionType *FTy,
+                    std::pair<AttributeList, CallingConv::ID> AttrsAndCC);
+
   raw_ostream &printTypeName(raw_ostream &Out, Type *Ty, bool isSigned = false,
                              std::pair<AttributeList, CallingConv::ID> PAL =
                                  std::make_pair(AttributeList(),
