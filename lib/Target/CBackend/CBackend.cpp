@@ -4661,6 +4661,7 @@ bool CTargetMachine::addPassesToEmitFile(
   PM.add(createGCLoweringPass());
   PM.add(createLowerInvokePass());
   PM.add(createCFGSimplificationPass());   // clean up after lower invoke.
+  PM.add(createAtomicExpandPass());
   PM.add(new CWriter(Out));
   return false;
 }
