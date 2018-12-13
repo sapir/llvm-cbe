@@ -21,6 +21,7 @@
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/Host.h"
 #include "llvm/CodeGen/TargetLowering.h"
+#include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/Config/config.h"
 
 #if LLVM_VERSION_MAJOR >= 7
@@ -4658,6 +4659,7 @@ bool CTargetMachine::addPassesToEmitFile(
 
   if (FileType != TargetMachine::CGFT_AssemblyFile) return true;
 
+  PM.add(new TargetPassConfig(*this, PM));
   PM.add(createGCLoweringPass());
   PM.add(createLowerInvokePass());
   PM.add(createCFGSimplificationPass());   // clean up after lower invoke.
