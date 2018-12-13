@@ -4793,7 +4793,7 @@ void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I,
 
 void CWriter::writeMemoryAccess(Value *Operand, Type *OperandType,
                                 bool IsVolatile, unsigned Alignment /*bytes*/) {
-  if (isAddressExposed(Operand)) {
+  if (isAddressExposed(Operand) && !IsVolatile) {
     writeOperandInternal(Operand);
     return;
   }
@@ -4801,9 +4801,14 @@ void CWriter::writeMemoryAccess(Value *Operand, Type *OperandType,
   bool IsUnaligned =
       Alignment && Alignment < TD->getABITypeAlignment(OperandType);
 
-  if (!IsUnaligned)
+  if (!IsUnaligned) {
     Out << '*';
-
+    if (IsVolatile) {
+        Out << "(volatile ";
+        printTypeName(Out, OperandType, false);
+        Out << "*)";
+      }
+  }
   else if (IsUnaligned) {
     Out << "__UNALIGNED_LOAD__(";
     printTypeNameUnaligned(Out, OperandType, false);
@@ -4812,12 +4817,6 @@ void CWriter::writeMemoryAccess(Value *Operand, Type *OperandType,
     Out << ", " << Alignment << ", ";
   }
 
-  else if (IsVolatile) {
-    Out << "(";
-    printTypeName(Out, OperandType, false);
-    Out << "volatile";
-    Out << "*)";
-  }
 
   writeOperand(Operand);
 
